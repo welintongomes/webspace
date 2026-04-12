@@ -675,6 +675,17 @@
         // ==========================================
         function triggerRecoveryReload(index) {
             // Salva a intenção de reabrir este site
+                        // Se estiver offline, aborta. É normal demorar para renderizar porque o navegador procura rede e dá timeout.
+            if (!navigator.onLine) return;
+
+            // Anti-Loop Infinito: Só permite 1 reload automático a cada 10 segundos
+            const lastRecover = localStorage.getItem('lastRecoverTime');
+            if (lastRecover && (Date.now() - parseInt(lastRecover)) < 10000) {
+                console.warn('Recuperação abortada para evitar loop.');
+                return;
+            }
+            localStorage.setItem('lastRecoverTime', Date.now().toString());
+
             localStorage.setItem('autoRecoverIndex', index.toString());
             
             const loader = document.getElementById('smoothLoader');
@@ -711,28 +722,26 @@
                 newIframe.srcdoc = site.code;
                 
                 // --- WATCHDOG / CÃO DE GUARDA ---
-                // Espera 800ms para ver se o navegador do celular engasgou com as fontes/scripts
                 setTimeout(() => {
-                    try {
-                        const doc = newIframe.contentDocument || newIframe.contentWindow.document;
-                        // Se o seu código tem conteúdo (>20 letras), mas o corpo do Iframe está vazio ou nulo, é tela branca!
-                        if (site.code.length > 20 && (!doc || !doc.body || doc.body.innerHTML.trim() === '')) {
-                            console.warn('Tela branca detectada! Acionando recuperação...');
+                    // Só fiscaliza a tela branca se o usuário tiver internet. 
+                    if (navigator.onLine) {
+                        try {
+                            const doc = newIframe.contentDocument || newIframe.contentWindow.document;
+                            if (site.code.length > 20 && (!doc || !doc.body || doc.body.innerHTML.trim() === '')) {
+                                console.warn('Tela branca! Tentando recuperar...');
+                                triggerRecoveryReload(index);
+                            }
+                        } catch (e) {
                             triggerRecoveryReload(index);
                         }
-                    } catch (e) {
-                        // Erros de segurança cruzada significam que o Iframe travou ao tentar ler links externos
-                        console.warn('Erro de acesso ao Iframe! Acionando recuperação...');
-                        triggerRecoveryReload(index);
                     }
-                }, 800);
+                }, 1200); // Paciência ajustada para 1.2s
 
             }, 10);
         }
 
         function closeFullscreen() {
             document.getElementById('fullscreenOverlay').style.display = 'none';
-            // Reload super rápido direto na veia para limpar memória
             window.location.reload();
         }
 
