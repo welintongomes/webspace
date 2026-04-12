@@ -559,14 +559,6 @@ async function loadSites() {
                         if (index >= 0 && index < sites.length) lastOpenedSiteIndex = index;
                     }
                     renderSites();
-
-                    // --- RECUPERAÇÃO AUTOMÁTICA APÓS RELOAD ---
-                    const recoverIndex = localStorage.getItem('autoRecoverIndex');
-                    if (recoverIndex !== null) {
-                        localStorage.removeItem('autoRecoverIndex'); 
-                        // Reabre automaticamente o site após a página recarregar
-                        setTimeout(() => openSite(parseInt(recoverIndex)), 300); 
-                    }
                 };
             } catch (error) { renderSites(); }
         }
@@ -660,29 +652,36 @@ async function loadSites() {
             });
         }
 
-        // ==========================================
-        // CÃO DE GUARDA (OFFLINE SAFE)
+// ==========================================
+        // CÃO DE GUARDA (TOTALMENTE OFFLINE SPA)
         // ==========================================
         function triggerRecoveryReload(index) {
-            // Trava anti-loop: Só permite recarregar 1 vez por tentativa de abrir o site.
             let tentativas = parseInt(sessionStorage.getItem('watchdog_' + index) || '0');
             if (tentativas >= 1) {
-                console.warn('Watchdog abortado: O site continuou branco após o reload. Evitando loop.');
+                console.warn('Watchdog abortado para evitar loop.');
                 return;
             }
             
-            // Marca que já tentamos recuperar este site nesta sessão
             sessionStorage.setItem('watchdog_' + index, '1'); 
-            localStorage.setItem('autoRecoverIndex', index.toString());
 
-            // Cria a tela de "Otimizando..." via JS puro (sem precisar mexer no HTML/CSS)
+            // Cria a tela de "Otimizando..." via JS puro
             const loader = document.createElement('div');
+            loader.id = 'tempLoader';
             loader.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(245,245,247,0.98);backdrop-filter:blur(10px);z-index:9999;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;color:#1d1d1f;';
             loader.textContent = 'Otimizando ambiente...';
             document.body.appendChild(loader);
 
-            // Dá um reload rápido
-            setTimeout(() => { window.location.reload(); }, 300);
+            // Reseta apenas o Iframe, sem dar reload na página do navegador
+            setTimeout(() => { 
+                const oldIframe = document.getElementById('siteFrame');
+                if (oldIframe) { 
+                    oldIframe.srcdoc = ''; // Esvazia a memória
+                    oldIframe.remove(); // Destrói o iframe antigo
+                }
+                openSite(index); // Tenta abrir a ferramenta de novo internamente
+                
+                setTimeout(() => { if(document.getElementById('tempLoader')) document.getElementById('tempLoader').remove(); }, 500);
+            }, 300);
         }
 
         // ==========================================
@@ -732,12 +731,17 @@ function openSite(index) {
             }, 10);
         }
 
-function closeFullscreen() {
+        function closeFullscreen() {
             document.getElementById('fullscreenOverlay').style.display = 'none';
-            // Limpa qualquer trava de erro ao fechar a tela cheia
             if(currentSiteIndex >= 0) sessionStorage.removeItem('watchdog_' + currentSiteIndex);
             
-            window.location.reload();
+            const oldIframe = document.getElementById('siteFrame');
+            if (oldIframe) { 
+                oldIframe.srcdoc = ''; // Esvazia a memória internamente
+                oldIframe.remove(); // Remove o elemento físico
+            }
+            // NUNCA MAIS DAR reload() aqui! Apenas renderiza a grade novamente.
+            renderSites(); 
         }
 
         function openAddSiteModal() {
@@ -806,8 +810,7 @@ function closeFullscreen() {
             closeSiteModal();
             
             await saveSites();
-            // Reload instantâneo
-            window.location.reload();
+            renderSites(); // Atualiza a tela instantaneamente sem reload
         });
 
         window.addEventListener('click', function (e) {
@@ -925,7 +928,7 @@ function closeFullscreen() {
                         if (confirm('Misturar aos existentes?\n[OK] = Sim\n[Cancelar] = Substituir tudo')) sites = sites.concat(imported);
                         else sites = imported;
                         await saveSites(); 
-                        window.location.reload(); 
+                        renderSites(); // Atualiza a tela sem recarregar o navegador
                     } else alert('JSON inválido!');
                 } catch (err) { alert('Erro: ' + err.message); }
             };
@@ -948,7 +951,7 @@ function closeFullscreen() {
                             if (imported.length === 1) sites = sites.concat(imported);
                             else sites = imported;
                             await saveSites(); 
-                            window.location.reload();
+                            renderSites(); // Atualiza a tela sem recarregar o navegador
                         }
                     }
                 } else {
@@ -962,7 +965,7 @@ function closeFullscreen() {
                     if (newSites.length > 0 && confirm(`Adicionar ${newSites.length} HTMLs?`)) { 
                         sites = sites.concat(newSites); 
                         await saveSites(); 
-                        window.location.reload(); 
+                        renderSites(); // Atualiza a tela sem recarregar o navegador
                     }
                 }
             } catch (err) {}
