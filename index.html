@@ -143,13 +143,15 @@
         }
 
         .sites-grid {
-            padding: 5.3px 3px 10px 5px;
+            padding: 10px 5px 120px 5px; /* 120px de respiro no fundo salva os últimos cards! */
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 25px;
             min-height: 200px;
-            max-height: 71.7vh;
+            max-height: 75vh;
             overflow-y: auto;
+            overflow-x: hidden; /* Evita que o site mastigue a sombra das laterais */
+            scroll-behavior: smooth; /* Deixa o deslizar do dedo mais suave */
         }
 
         /* Scrollbar customizada */
@@ -696,15 +698,16 @@
             .form-group textarea { font-size: 12px; height: 300px; font-family: 'Courier New', monospace; resize: vertical; }
             .grid-wrapper { display: flex; flex-direction: column; justify-content: center; min-height: 89vh; }
             .sites-grid {
-                padding-bottom: 15px;
-                border-radius: 10px;
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                gap: 25px;
-                min-height: 200px;
-                max-height: 73vh;
-                overflow-y: auto;
-            }
+            padding: 30px 5px 50px 5px; /* 120px de respiro no fundo salva os últimos cards! */
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            min-height: 200px;
+            max-height: 75vh;
+            overflow-y: auto;
+            overflow-x: hidden; /* Evita que o site mastigue a sombra das laterais */
+            scroll-behavior: smooth; /* Deixa o deslizar do dedo mais suave */
+        }
 
             .fullscreen-header {
                 gap: 13px;
@@ -772,7 +775,7 @@
         .mark-match { background-color: rgba(255, 0, 255, 0.4); color: transparent; border-radius: 3px; }
         .mark-active { background-color: rgba(0, 255, 255, 0.6); color: transparent; box-shadow: 0 0 0 2px var(--neon-cyan); }
         
-        @media (max-width: 768px) { .editor-wrapper { height: 350px; } #clearCodeSearchBtn { left: 11px; font-size: 32px; } }
+        @media (max-width: 768px) { .editor-wrapper { height: 300px; } #clearCodeSearchBtn { left: 11px; font-size: 32px; } }
     
         /* BOTÃO GIGANTE DE OTIMIZAÇÃO */
         #bigOptimizeBtn {
@@ -1578,11 +1581,14 @@
             });
 
             // O que acontece quando clica no botão "X"
-            mainClearBtn.addEventListener('click', function () {
+            mainClearBtn.addEventListener('click', function (e) {
+                e.preventDefault(); // Impede o botão de piscar a tela
                 mainSearchInput.value = '';
                 mainClearBtn.style.display = 'none';
                 renderSites(); // Mostra todos os sites de novo
-                mainSearchInput.focus(); // Mantém o teclado aberto
+                
+                // A linha "mainSearchInput.focus();" foi apagada daqui. 
+                // É ela que fazia o teclado subir igual louco!
             });
 
             // Bônus: Limpar a busca apertando a tecla "Esc" do teclado (se usar no PC)
