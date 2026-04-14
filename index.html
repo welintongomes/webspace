@@ -1235,6 +1235,8 @@
         // Abrir site em tela cheia com Super Espião
 
         // Abrir site em tela cheia (Volta do srcdoc com Espião Seguro)
+ 
+        // Abrir site em tela cheia (Volta do srcdoc com Espião Implacável)
         function openSite(index) {
             currentSiteIndex = index;
             lastOpenedSiteIndex = index;
@@ -1256,24 +1258,32 @@
                 iframe.srcdoc = site.code;
             }, 50);
 
-            // ESPIÃO MAIS INTELIGENTE (Espera 3 segundos)
+            // ESPIÃO IMPLACÁVEL (Espera 3.5 segundos para dar tempo ao celular)
             setTimeout(() => {
                 try {
                     const doc = iframe.contentWindow.document;
-                    // Se o HTML dentro do body for literalmente vazio, a tela tá branca
-                    const bodyHtml = doc.body ? doc.body.innerHTML.trim() : '';
                     
-                    if (bodyHtml === '') {
-                        console.warn('Tela branca detectada pelo espião!');
+                    // 1. O Iframe travou tentando baixar um arquivo CSS ou Script externo?
+                    const carregamentoTravado = doc.readyState !== 'complete';
+                    
+                    // 2. A fonte do Google Fonts travou e deixou o texto invisível?
+                    const fonteTravada = doc.fonts && doc.fonts.status === 'loading';
+                    
+                    // 3. A página falhou em desenhar o corpo (body sem tamanho visível)?
+                    const paginaVazia = doc.body ? doc.body.offsetHeight < 10 : true;
+
+                    // Se qualquer um desses erros acontecer, é o bug da tela branca!
+                    if (carregamentoTravado || fonteTravada || paginaVazia) {
+                        console.warn('Bug da tela branca detectado! Exibindo botão gigante.');
                         bigBtn.style.display = 'block';
                     }
                 } catch (e) {
-                    // Erros de segurança (scripts externos bloqueados) também ativam o botão
+                    // Erros de segurança do navegador bloqueando a leitura também ativam o botão
+                    console.warn('Erro de leitura bloqueado. Exibindo botão gigante.');
                     bigBtn.style.display = 'block';
                 }
-            }, 3000);
+            }, 3500); // 3.5 segundos garante que não vai aparecer à toa se a net estiver só um pouco lenta
         }
-
 
 
         // Fechar tela cheia
