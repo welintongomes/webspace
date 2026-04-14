@@ -1230,6 +1230,8 @@
         }
 
         // Abrir site em tela cheia com Super Espião
+
+        // Abrir site em tela cheia (Volta do srcdoc com Espião Seguro)
         function openSite(index) {
             currentSiteIndex = index;
             lastOpenedSiteIndex = index;
@@ -1240,54 +1242,36 @@
             const iframe = document.getElementById('siteFrame');
             const bigBtn = document.getElementById('bigOptimizeBtn');
             
-            // Esconde o botão gigante
+            // Esconde o botão gigante e limpa a memória
             bigBtn.style.display = 'none';
             iframe.srcdoc = '';
 
-            // Técnica BLOB: É muito mais estável offline do que srcdoc
-            const blob = new Blob([site.code], { type: 'text/html;charset=utf-8' });
-            iframe.src = URL.createObjectURL(blob);
-
             document.getElementById('fullscreenOverlay').style.display = 'block';
 
-            // SUPER ESPIÃO: Aguarda 2.5 segundos para ver se travou
+            // VOLTAMOS PARA O SRCDOC RAIZ (com um micro-atraso para limpar o cache)
+            setTimeout(() => {
+                iframe.srcdoc = site.code;
+            }, 50);
+
+            // ESPIÃO MAIS INTELIGENTE (Espera 3 segundos)
             setTimeout(() => {
                 try {
                     const doc = iframe.contentWindow.document;
-                    // 1. O navegador diz que não terminou de carregar?
-                    const estaCarregando = doc.readyState !== 'complete';
+                    // Se o HTML dentro do body for literalmente vazio, a tela tá branca
+                    const bodyHtml = doc.body ? doc.body.innerHTML.trim() : '';
                     
-                    // 2. Não tem nenhum texto digitado na tela?
-                    const semTexto = doc.body ? doc.body.innerText.trim() === '' : true;
-                    
-                    // 3. Não tem botões, imagens, canvas ou inputs?
-                    const semElementos = doc.querySelectorAll('button, input, canvas, img, svg').length === 0;
-
-                    // Se travou OU (tem só fundo colorido, mas tá vazio de conteúdo real)
-                    if (estaCarregando || (semTexto && semElementos)) {
-                        console.warn('Tela congelada ou vazia detectada! Exibindo botão gigante.');
+                    if (bodyHtml === '') {
+                        console.warn('Tela branca detectada pelo espião!');
                         bigBtn.style.display = 'block';
                     }
                 } catch (e) {
-                    // Se o Chrome der erro de segurança (cross-origin), assumimos que quebrou
-                    console.warn('Erro de leitura do Iframe. Exibindo botão gigante.');
+                    // Erros de segurança (scripts externos bloqueados) também ativam o botão
                     bigBtn.style.display = 'block';
                 }
-            }, 2500);
+            }, 3000);
         }
 
-        // Sistema de Otimização (O Botão Gigante)
-        function optimizeSite() {
-            if (currentSiteIndex >= 0) {
-                // Guarda o site atual para abrir depois de recarregar (exatamente como você fazia antes)
-                localStorage.setItem('autoRecoverIndex', currentSiteIndex.toString());
-                
-                // Limpa o Iframe e recarrega a página inteira
-                const iframe = document.getElementById('siteFrame');
-                iframe.src = 'about:blank';
-                window.location.reload();
-            }
-        }
+
 
         // Fechar tela cheia
         function closeFullscreen() {
@@ -1694,15 +1678,46 @@
         // SISTEMA DE OTIMIZAÇÃO E RECUPERAÇÃO
         // ==========================================
 
-// Carregar sites ao iniciar e checar se precisa recuperar o site travado
+// Sistema de Otimização com TRAVA ANTI-LOOP
+        function optimizeSite() {
+            if (currentSiteIndex >= 0) {
+                // Verifica se já tentamos otimizar essa tela nos últimos segundos
+                let tentativas = parseInt(sessionStorage.getItem('anti_loop_trava') || '0');
+                
+                if (tentativas >= 1) {
+                    // SE ENTRAR EM LOOP: Quebra o sistema, avisa e fecha!
+                    alert('⚠️ Falha crítica: O código desta ferramenta parece ter um erro grave ou depende de uma biblioteca externa que não carrega offline. Edite o código e tente novamente.');
+                    sessionStorage.removeItem('anti_loop_trava');
+                    closeFullscreen();
+                    return;
+                }
+
+                // Marca que estamos tentando otimizar (1 tentativa)
+                sessionStorage.setItem('anti_loop_trava', '1');
+                
+                // Salva o site para reabrir
+                localStorage.setItem('autoRecoverIndex', currentSiteIndex.toString());
+                
+                // Limpa e recarrega
+                const iframe = document.getElementById('siteFrame');
+                iframe.src = 'about:blank';
+                window.location.reload();
+            }
+        }
+
+        // Carregar sites ao iniciar e recuperar quebras
         (async () => {
             await loadSites();
             
-            // Lógica de recuperação que volta a funcionar perfeitamente!
             const recoverIndex = localStorage.getItem('autoRecoverIndex');
             if (recoverIndex !== null) {
+                // Limpa o gatilho de auto-recover
                 localStorage.removeItem('autoRecoverIndex'); 
+                // Reabre o site com pequeno atraso
                 setTimeout(() => openSite(parseInt(recoverIndex)), 500); 
+            } else {
+                // Se abriu a página normalmente (sem ser pelo botão de otimizar), zera a trava de segurança
+                sessionStorage.removeItem('anti_loop_trava');
             }
         })();
     </script>
